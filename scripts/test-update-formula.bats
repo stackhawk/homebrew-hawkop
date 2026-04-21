@@ -48,3 +48,30 @@ teardown() {
   [ "$status" -ne 0 ]
   [[ "$output" == *"expected 64-char hex"* ]]
 }
+
+@test "dry-run offline prints rendered formula to stdout" {
+  run "$SCRIPT" --version 1.2.3 --dry-run --offline
+  [ "$status" -eq 0 ]
+  [[ "$output" == *'class Hawkop < Formula'* ]]
+  [[ "$output" == *'version "1.2.3"'* ]]
+  [[ "$output" == *'hawkop-v1.2.3-x86_64-apple-darwin.tar.gz'* ]]
+  # No unsubstituted placeholders remain
+  [[ "$output" != *'${version}'* ]]
+  [[ "$output" != *'${mac_x64_sha256}'* ]]
+}
+
+@test "writes Formula/hawkop.rb when not dry-run" {
+  run "$SCRIPT" --version 1.2.3 --offline
+  [ "$status" -eq 0 ]
+  [ -f "Formula/hawkop.rb" ]
+  run cat Formula/hawkop.rb
+  [[ "$output" == *'class Hawkop < Formula'* ]]
+}
+
+@test "is idempotent — second run produces the same file" {
+  "$SCRIPT" --version 1.2.3 --offline
+  sum1=$(shasum -a 256 Formula/hawkop.rb | awk '{print $1}')
+  "$SCRIPT" --version 1.2.3 --offline
+  sum2=$(shasum -a 256 Formula/hawkop.rb | awk '{print $1}')
+  [ "$sum1" = "$sum2" ]
+}

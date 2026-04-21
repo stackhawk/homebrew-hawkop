@@ -68,8 +68,29 @@ MAC_ARM64_SHA=$(fetch_sha "aarch64-apple-darwin")
 LINUX_X64_SHA=$(fetch_sha "x86_64-unknown-linux-gnu")
 LINUX_ARM64_SHA=$(fetch_sha "aarch64-unknown-linux-gnu")
 
-echo "version=$VERSION"
-echo "mac_x64=$MAC_X64_SHA"
-echo "mac_arm64=$MAC_ARM64_SHA"
-echo "linux_x64=$LINUX_X64_SHA"
-echo "linux_arm64=$LINUX_ARM64_SHA"
+# --- Render template ---
+# Resolve template path relative to this script.
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+TEMPLATE="${SCRIPT_DIR}/formula-template.rb"
+if [ ! -f "$TEMPLATE" ]; then
+  echo "error: template not found at $TEMPLATE" >&2
+  exit 1
+fi
+
+render() {
+  sed \
+    -e "s|\${version}|${VERSION}|g" \
+    -e "s|\${mac_x64_sha256}|${MAC_X64_SHA}|g" \
+    -e "s|\${mac_arm64_sha256}|${MAC_ARM64_SHA}|g" \
+    -e "s|\${linux_x64_sha256}|${LINUX_X64_SHA}|g" \
+    -e "s|\${linux_arm64_sha256}|${LINUX_ARM64_SHA}|g" \
+    "$TEMPLATE"
+}
+
+if [ "$DRY_RUN" -eq 1 ]; then
+  render
+else
+  mkdir -p Formula
+  render > Formula/hawkop.rb
+  echo "wrote Formula/hawkop.rb (version $VERSION)"
+fi
