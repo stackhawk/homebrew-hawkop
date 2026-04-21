@@ -31,9 +31,19 @@ jobs:
             echo "skip=0" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Register checkout as local tap
+        if: steps.guard.outputs.skip == '0'
+        run: |
+          # Modern `brew audit` and `brew install` require a tap-qualified name,
+          # not a file path. Symlink the checked-out repo into the Taps dir so
+          # `stackhawk/hawkop/hawkop` resolves to the formula in this branch.
+          tap_parent="$(brew --repository)/Library/Taps/stackhawk"
+          mkdir -p "$tap_parent"
+          ln -sfn "$GITHUB_WORKSPACE" "$tap_parent/homebrew-hawkop"
+
       - name: Audit
         if: steps.guard.outputs.skip == '0'
-        run: brew audit --strict --online Formula/hawkop.rb
+        run: brew audit --strict --online stackhawk/hawkop/hawkop
 
       - name: Probe tarball availability
         if: steps.guard.outputs.skip == '0'
@@ -47,7 +57,9 @@ jobs:
             Linux-ARM64)  target="aarch64-unknown-linux-gnu" ;;
             *) echo "unsupported runner: ${{ runner.os }}-${{ runner.arch }}"; exit 1 ;;
           esac
-          version=$(grep -E '^\s*version ' Formula/hawkop.rb | head -n1 | sed -E 's/.*"([^"]+)".*/\1/')
+          # Formula has no explicit `version` field — it's derived from the URL by
+          # Homebrew. Extract it from the first hawkop-v<VERSION>- pattern we see.
+          version=$(grep -oE 'hawkop-v[0-9][0-9A-Za-z.-]+' Formula/hawkop.rb | head -n1 | sed 's/^hawkop-v//' | sed -E 's/-(x86_64|aarch64).*$//')
           url="https://download.stackhawk.com/hawkop/cli/hawkop-v${version}-${target}.tar.gz"
           code=$(curl -sSIo /dev/null -w '%{http_code}' "$url")
           echo "url=$url"
@@ -60,11 +72,11 @@ jobs:
 
       - name: Install
         if: steps.guard.outputs.skip == '0' && steps.probe.outputs.installable == '1'
-        run: brew install --verbose Formula/hawkop.rb
+        run: brew install --verbose stackhawk/hawkop/hawkop
 
       - name: Test
         if: steps.guard.outputs.skip == '0' && steps.probe.outputs.installable == '1'
-        run: brew test hawkop
+        run: brew test stackhawk/hawkop/hawkop
 
   lint-scripts:
     name: Shellcheck + bats

@@ -1,6 +1,6 @@
 #!/bin/sh
 # Render scripts/formula-template.rb to Formula/hawkop.rb for a given hawkop version.
-# Fetches SHA256 sidecars from download.stackhawk.com.
+# Downloads each tarball from download.stackhawk.com and computes its SHA256.
 #
 # Usage:
 #   scripts/update-formula.sh --version 0.6.2
@@ -11,7 +11,7 @@ set -eu
 parse_sha_from_stdin() {
   sha=$(tr -d '\r' | grep -Eo '[0-9a-fA-F]{64}' | head -n1)
   if [ -z "$sha" ]; then
-    echo "error: expected 64-char hex in sha256 sidecar" >&2
+    echo "error: expected 64-char hex on stdin" >&2
     return 1
   fi
   printf '%s' "$sha"
@@ -54,6 +54,19 @@ fi
 
 BASE_URL="https://download.stackhawk.com/hawkop/cli"
 
+sha256_of_file() {
+  # Compute SHA256 of the given file. Prefer shasum (ships on macOS and most
+  # Linux distros); fall back to sha256sum.
+  if command -v shasum >/dev/null 2>&1; then
+    shasum -a 256 "$1" | awk '{print $1}'
+  elif command -v sha256sum >/dev/null 2>&1; then
+    sha256sum "$1" | awk '{print $1}'
+  else
+    echo "error: neither shasum nor sha256sum is available" >&2
+    return 1
+  fi
+}
+
 fetch_sha() {
   target="$1"
   if [ "$OFFLINE" -eq 1 ]; then
@@ -61,12 +74,20 @@ fetch_sha() {
     return 0
   fi
   archive="hawkop-v${VERSION}-${target}.tar.gz"
-  archive_status=$(curl -sSIo /dev/null -w '%{http_code}' "${BASE_URL}/${archive}")
-  if [ "$archive_status" != "200" ]; then
-    echo "error: archive ${archive} returned HTTP ${archive_status}" >&2
+  tmpfile=$(mktemp)
+  trap 'rm -f "$tmpfile"' EXIT INT TERM
+  if ! curl -sSfL -o "$tmpfile" "${BASE_URL}/${archive}"; then
+    echo "error: failed to download ${archive} from ${BASE_URL}" >&2
     exit 1
   fi
-  curl -sSf "${BASE_URL}/${archive}.sha256" | "$0" --parse-sha-stdin
+  sha=$(sha256_of_file "$tmpfile")
+  rm -f "$tmpfile"
+  trap - EXIT INT TERM
+  if [ -z "$sha" ] || [ "${#sha}" -ne 64 ]; then
+    echo "error: got unexpected hash for ${archive}: '$sha'" >&2
+    exit 1
+  fi
+  printf '%s' "$sha"
 }
 
 MAC_X64_SHA=$(fetch_sha "x86_64-apple-darwin")
@@ -99,12 +120,4 @@ else
   mkdir -p Formula
   render > Formula/hawkop.rb
   echo "wrote Formula/hawkop.rb (version $VERSION)" >&2
-fi
-
-# --- Optional local audit ---
-# If brew is on PATH and we actually wrote a file, run audit. Skip in dry-run
-# or offline mode (offline produces zeroed SHAs that would fail audit).
-if [ "$DRY_RUN" -eq 0 ] && [ "$OFFLINE" -eq 0 ] && command -v brew >/dev/null 2>&1; then
-  echo "running: brew audit --strict --online Formula/hawkop.rb" >&2
-  brew audit --strict --online Formula/hawkop.rb
 fi

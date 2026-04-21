@@ -53,8 +53,11 @@ teardown() {
   run "$SCRIPT" --version 1.2.3 --dry-run --offline
   [ "$status" -eq 0 ]
   [[ "$output" == *'class Hawkop < Formula'* ]]
-  [[ "$output" == *'version "1.2.3"'* ]]
+  # Version comes from the URL, not an explicit `version` field — Homebrew
+  # derives it from `hawkop-v<ver>-<target>.tar.gz` to avoid `brew audit`
+  # flagging redundancy.
   [[ "$output" == *'hawkop-v1.2.3-x86_64-apple-darwin.tar.gz'* ]]
+  [[ "$output" == *'hawkop-v1.2.3-aarch64-unknown-linux-gnu.tar.gz'* ]]
   # No unsubstituted placeholders remain
   [[ "$output" != *'${version}'* ]]
   [[ "$output" != *'${mac_x64_sha256}'* ]]

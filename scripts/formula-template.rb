@@ -3,7 +3,6 @@
 class Hawkop < Formula
   desc "CLI companion for the StackHawk AppSec Intelligence Platform"
   homepage "https://www.stackhawk.com/"
-  version "${version}"
   license "MIT"
 
   on_macos do
