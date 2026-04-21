@@ -92,5 +92,5 @@ if [ "$DRY_RUN" -eq 1 ]; then
 else
   mkdir -p Formula
   render > Formula/hawkop.rb
-  echo "wrote Formula/hawkop.rb (version $VERSION)"
+  echo "wrote Formula/hawkop.rb (version $VERSION)" >&2
 fi
