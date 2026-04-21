@@ -94,3 +94,11 @@ else
   render > Formula/hawkop.rb
   echo "wrote Formula/hawkop.rb (version $VERSION)" >&2
 fi
+
+# --- Optional local audit ---
+# If brew is on PATH and we actually wrote a file, run audit. Skip in dry-run
+# or offline mode (offline produces zeroed SHAs that would fail audit).
+if [ "$DRY_RUN" -eq 0 ] && [ "$OFFLINE" -eq 0 ] && command -v brew >/dev/null 2>&1; then
+  echo "running: brew audit --strict --online Formula/hawkop.rb" >&2
+  brew audit --strict --online Formula/hawkop.rb
+fi
