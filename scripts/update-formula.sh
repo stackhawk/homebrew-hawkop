@@ -27,7 +27,7 @@ while [ $# -gt 0 ]; do
       shift
       ;;
     -h|--help)
-      sed -n '2,10p' "$0"
+      sed -n '2,8p' "$0"
       exit 0
       ;;
     *)
