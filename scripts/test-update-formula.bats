@@ -35,3 +35,16 @@ teardown() {
   run "$SCRIPT" --version "1.2.3-rc.1" --dry-run --offline
   [ "$status" -eq 0 ]
 }
+
+@test "extracts 64-char hex from sha256 sidecar" {
+  run bash -c "echo 'abc123$(printf "%.0s0" {1..58})  hawkop-v0.0.0-x86_64-apple-darwin.tar.gz' | '$SCRIPT' --parse-sha-stdin"
+  [ "$status" -eq 0 ]
+  [[ "$output" == abc123* ]]
+  [ ${#output} -eq 64 ]
+}
+
+@test "rejects sidecar without 64-char hex" {
+  run bash -c "echo 'not-a-hash' | '$SCRIPT' --parse-sha-stdin"
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"expected 64-char hex"* ]]
+}
