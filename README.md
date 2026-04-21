@@ -9,6 +9,9 @@ brew tap stackhawk/hawkop
 brew install hawkop
 ```
 
+> Requires a published release. If you see `Error: No available formula`, the
+> first release has not yet been cut — see [Releasing a new version](#releasing-a-new-version).
+
 ## Upgrade
 
 ```sh
