@@ -28,7 +28,13 @@ OFFLINE=0
 
 while [ $# -gt 0 ]; do
   case "$1" in
-    --version)   VERSION="$2"; shift 2 ;;
+    --version)
+      if [ -z "${2:-}" ]; then
+        echo "error: --version requires an argument" >&2
+        exit 2
+      fi
+      VERSION="$2"; shift 2
+      ;;
     --dry-run)   DRY_RUN=1; shift ;;
     --offline)   OFFLINE=1; shift ;;
     -h|--help)   sed -n '2,8p' "$0"; exit 0 ;;
@@ -60,7 +66,7 @@ fetch_sha() {
     echo "error: archive ${archive} returned HTTP ${archive_status}" >&2
     exit 1
   fi
-  curl -sSf "${BASE_URL}/${archive}.sha256" | parse_sha_from_stdin
+  curl -sSf "${BASE_URL}/${archive}.sha256" | "$0" --parse-sha-stdin
 }
 
 MAC_X64_SHA=$(fetch_sha "x86_64-apple-darwin")

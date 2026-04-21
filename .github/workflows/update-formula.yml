@@ -24,14 +24,22 @@ jobs:
     steps:
       - name: Resolve version
         id: resolve
+        env:
+          INPUT_VERSION: ${{ github.event.inputs.version }}
+          PAYLOAD_VERSION: ${{ github.event.client_payload.version }}
         run: |
-          if [ -n "${{ github.event.inputs.version }}" ]; then
-            v="${{ github.event.inputs.version }}"
+          if [ -n "$INPUT_VERSION" ]; then
+            v="$INPUT_VERSION"
           else
-            v="${{ github.event.client_payload.version }}"
+            v="$PAYLOAD_VERSION"
           fi
           if [ -z "$v" ]; then
             echo "error: no version supplied (inputs.version or client_payload.version)" >&2
+            exit 2
+          fi
+          # Defense in depth — reject anything that isn't a semver before we hand it to any shell.
+          if ! printf '%s' "$v" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.-]+)?$'; then
+            echo "error: invalid version format '$v'" >&2
             exit 2
           fi
           echo "version=$v" >> "$GITHUB_OUTPUT"
@@ -41,9 +49,13 @@ jobs:
       - uses: Homebrew/actions/setup-homebrew@master
 
       - name: Render formula
-        run: scripts/update-formula.sh --version "${{ steps.resolve.outputs.version }}"
+        env:
+          HAWKOP_VERSION: ${{ steps.resolve.outputs.version }}
+        run: scripts/update-formula.sh --version "$HAWKOP_VERSION"
 
       - name: Commit and push
+        env:
+          HAWKOP_VERSION: ${{ steps.resolve.outputs.version }}
         run: |
           git config user.name "hawkop-bot"
           git config user.email "noreply@stackhawk.com"
@@ -52,5 +64,5 @@ jobs:
             exit 0
           fi
           git add Formula/hawkop.rb
-          git commit -m "hawkop: update to ${{ steps.resolve.outputs.version }}"
+          git commit -m "hawkop: update to $HAWKOP_VERSION"
           git push origin main
