@@ -13,6 +13,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: update-formula
+  cancel-in-progress: false
+
 jobs:
   update:
     name: Render and commit Formula/hawkop.rb
@@ -43,7 +47,7 @@ jobs:
         run: |
           git config user.name "hawkop-bot"
           git config user.email "noreply@stackhawk.com"
-          if git diff --quiet Formula/hawkop.rb 2>/dev/null && [ ! -n "$(git status --porcelain Formula/hawkop.rb 2>/dev/null)" ]; then
+          if [ -z "$(git status --porcelain Formula/hawkop.rb 2>/dev/null)" ]; then
             echo "no changes to commit"
             exit 0
           fi
