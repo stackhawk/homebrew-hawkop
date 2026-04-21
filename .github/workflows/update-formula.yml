@@ -1,0 +1,52 @@
+name: Update formula
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'hawkop version to release (e.g. 0.6.2)'
+        required: true
+        type: string
+  repository_dispatch:
+    types: [hawkop-release]
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    name: Render and commit Formula/hawkop.rb
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve version
+        id: resolve
+        run: |
+          if [ -n "${{ github.event.inputs.version }}" ]; then
+            v="${{ github.event.inputs.version }}"
+          else
+            v="${{ github.event.client_payload.version }}"
+          fi
+          if [ -z "$v" ]; then
+            echo "error: no version supplied (inputs.version or client_payload.version)" >&2
+            exit 2
+          fi
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v4
+
+      - uses: Homebrew/actions/setup-homebrew@master
+
+      - name: Render formula
+        run: scripts/update-formula.sh --version "${{ steps.resolve.outputs.version }}"
+
+      - name: Commit and push
+        run: |
+          git config user.name "hawkop-bot"
+          git config user.email "noreply@stackhawk.com"
+          if git diff --quiet Formula/hawkop.rb 2>/dev/null && [ ! -n "$(git status --porcelain Formula/hawkop.rb 2>/dev/null)" ]; then
+            echo "no changes to commit"
+            exit 0
+          fi
+          git add Formula/hawkop.rb
+          git commit -m "hawkop: update to ${{ steps.resolve.outputs.version }}"
+          git push origin main
