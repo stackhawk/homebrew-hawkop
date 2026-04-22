@@ -46,7 +46,11 @@ jobs:
 
       - uses: actions/checkout@v4
 
-      - uses: Homebrew/actions/setup-homebrew@master
+      # Intentionally NOT installing Homebrew here — the renderer only needs
+      # curl/shasum/sed, all of which are preinstalled on ubuntu-latest, and
+      # Homebrew/actions/setup-homebrew rewrites the repo's git config in a
+      # way that wipes the auth header set by actions/checkout@v4, breaking
+      # `git push`.
 
       - name: Render formula
         env:
